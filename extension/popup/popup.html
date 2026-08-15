@@ -1,0 +1,53 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <header>
+      <span class="title">career-ops-lite</span>
+      <span id="relay-badge" class="badge badge-unknown">checking relay…</span>
+    </header>
+
+    <div id="relay-banner" class="banner hidden">
+      Relay not reachable — showing <strong>mock</strong> scores. Start it with
+      <code>node relay/server.mjs</code> in career-ops-lite for real ones.
+    </div>
+
+    <section id="entity-section">
+      <div id="entity-label" class="entity-label">Detecting…</div>
+      <div id="picked-banner" class="picked-banner hidden"></div>
+      <button id="pick-btn" class="secondary hidden">Pick element manually</button>
+    </section>
+
+    <section id="tier-section">
+      <div class="tier-row">
+        <label><input type="radio" name="tier" value="light" checked /> Light</label>
+        <label><input type="radio" name="tier" value="normal" /> Normal</label>
+        <label><input type="radio" name="tier" value="ultra" /> Ultra</label>
+      </div>
+      <button id="score-btn" class="primary">Score this page</button>
+    </section>
+
+    <section id="result-section" class="hidden">
+      <div id="result-card" class="result-card"></div>
+      <div class="save-row">
+        <button id="save-btn" class="secondary">Save to shortlist</button>
+        <label class="auto-save"><input type="checkbox" id="auto-save-toggle" /> auto-save on PASS/MARGINAL</label>
+      </div>
+      <div id="save-status" class="save-status"></div>
+    </section>
+
+    <section id="teach-section">
+      <div class="teach-label">Teach it something (deal-breaker, preference…)</div>
+      <div class="teach-row">
+        <input id="teach-input" type="text" placeholder="e.g. no on-site roles anymore" />
+        <button id="teach-btn" class="secondary">Save</button>
+      </div>
+      <div id="teach-status" class="save-status"></div>
+    </section>
+
+    <script src="popup.js"></script>
+  </body>
+</html>

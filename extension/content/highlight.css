@@ -1,0 +1,33 @@
+.co-lite-hover-overlay {
+  position: absolute;
+  z-index: 2147483647;
+  pointer-events: none;
+  background: rgba(80, 140, 255, 0.18);
+  outline: 2px solid rgba(80, 140, 255, 0.9);
+  border-radius: 3px;
+  display: none;
+  transition: top 0.05s linear, left 0.05s linear, width 0.05s linear, height 0.05s linear;
+}
+
+.co-lite-picker-banner {
+  position: fixed;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2147483647;
+  background: #1f2937;
+  color: #f9fafb;
+  font: 13px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  padding: 8px 14px;
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+}
+
+.co-lite-tier1-overlay {
+  position: absolute;
+  z-index: 2147483646;
+  pointer-events: none;
+  background: rgba(34, 197, 94, 0.15);
+  outline: 2px dashed rgba(34, 197, 94, 0.85);
+  border-radius: 3px;
+}

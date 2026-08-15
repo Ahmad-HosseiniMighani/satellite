@@ -70,6 +70,7 @@ if (!window.__careerOpsLitePickerActive) {
     document.removeEventListener("mousemove", onMouseMove, true);
     document.removeEventListener("click", onClick, true);
     document.removeEventListener("keydown", onKeyDown, true);
+    chrome.runtime.onMessage.removeListener(onStopMessage);
     overlay.remove();
     banner.remove();
     window.__careerOpsLitePickerActive = false;
@@ -99,7 +100,16 @@ if (!window.__careerOpsLitePickerActive) {
     }
   }
 
+  // The popup closes the instant the user clicks the page (that's how picking
+  // works), so "stop" has to reach this content script asynchronously, later,
+  // from the background worker — not from the popup directly. No response
+  // needed: the background worker owns clearing its own pickerActive state.
+  function onStopMessage(msg) {
+    if (msg?.type === "co-lite:stop-picker") cleanup();
+  }
+
   document.addEventListener("mousemove", onMouseMove, true);
   document.addEventListener("click", onClick, true);
   document.addEventListener("keydown", onKeyDown, true);
+  chrome.runtime.onMessage.addListener(onStopMessage);
 }

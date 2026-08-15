@@ -19,6 +19,30 @@ async function getLearnedSelectors() {
   return selectors;
 }
 
+// Picker state has to survive the popup closing — clicking the page to pick
+// an element closes the popup by design — and survive the service worker
+// itself being suspended/restarted (MV3 workers are ephemeral), so it lives
+// in chrome.storage.local, not a JS variable. Keyed by tabId since only one
+// picker session makes sense per tab at a time.
+async function getPickerActive() {
+  const { pickerActive } = await chrome.storage.local.get("pickerActive");
+  return pickerActive || null;
+}
+
+async function clearPickerActive(tabId) {
+  const active = await getPickerActive();
+  if (active && (tabId === undefined || active.tabId === tabId)) {
+    await chrome.storage.local.set({ pickerActive: null });
+  }
+}
+
+// A picker left active on a tab that's since navigated or closed is a stale
+// "Stop picking" button that does nothing — clear it opportunistically.
+chrome.tabs.onRemoved.addListener((tabId) => clearPickerActive(tabId));
+chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
+  if (changeInfo.status === "loading") clearPickerActive(tabId);
+});
+
 // Runs the full Tier 0 → 0b → 1 → 2 → 4 chain and returns the first tier that
 // produces usable JD text. Tier 0's ATS API is tried first (cheapest, most
 // structured, no DOM access needed); everything else falls through to the
@@ -65,6 +89,7 @@ async function getState(tab) {
   const hostname = new URL(tab.url).hostname;
   const learned = (await getLearnedSelectors())[hostname];
   const relayUp = await checkHealth();
+  const active = await getPickerActive();
 
   let entity;
   if (ats) {
@@ -75,7 +100,14 @@ async function getState(tab) {
     entity = { ats: null, label: "Unknown site — will auto-detect or ask you to pick", tier: null };
   }
 
-  return { tab: { url: tab.url, title: tab.title }, entity, relayUp };
+  return {
+    tab: { url: tab.url, title: tab.title },
+    entity,
+    relayUp,
+    hostname,
+    selectorInfo: learned || null,
+    pickerActiveHere: active?.tabId === tab.id,
+  };
 }
 
 async function getActiveTab() {
@@ -113,10 +145,29 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         const tab = await getActiveTab();
         await chrome.scripting.insertCSS({ target: { tabId: tab.id }, files: ["content/highlight.css"] });
         await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ["content/picker.js"] });
+        await chrome.storage.local.set({
+          pickerActive: { tabId: tab.id, hostname: new URL(tab.url).hostname, startedAt: Date.now() },
+        });
+        sendResponse({ ok: true });
+        break;
+      }
+      case "co-lite:stop-picker": {
+        const active = await getPickerActive();
+        if (active) {
+          try {
+            await chrome.tabs.sendMessage(active.tabId, { type: "co-lite:stop-picker" });
+          } catch {
+            // tab already closed/navigated — nothing to clean up on its side
+          }
+        }
+        await clearPickerActive();
         sendResponse({ ok: true });
         break;
       }
       case "co-lite:picked": {
+        // Reached whether the user locked a selection or hit Escape — either
+        // way the picker session on the page is over, so this is the one
+        // place that always clears pickerActive (stop-picker is the other).
         if (!msg.cancelled) {
           const selectors = await getLearnedSelectors();
           const entry = { selector: msg.selector, kind: msg.kind, savedAt: new Date().toISOString() };
@@ -124,12 +175,38 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
           await chrome.storage.local.set({ selectors, lastPicked: { hostname: msg.hostname, ...entry } });
           syncSelector(msg.hostname, entry); // best-effort, fire-and-forget
         }
+        await clearPickerActive(sender?.tab?.id);
         sendResponse({ ok: true });
         break;
       }
       case "co-lite:get-last-picked": {
         const { lastPicked } = await chrome.storage.local.get("lastPicked");
         sendResponse(lastPicked || null);
+        break;
+      }
+      case "co-lite:get-selectors": {
+        sendResponse(await getLearnedSelectors());
+        break;
+      }
+      case "co-lite:remove-selector": {
+        const selectors = await getLearnedSelectors();
+        delete selectors[msg.hostname];
+        await chrome.storage.local.set({ selectors });
+        sendResponse({ ok: true });
+        break;
+      }
+      case "co-lite:highlight-selector": {
+        const selectors = await getLearnedSelectors();
+        const entry = selectors[msg.hostname];
+        if (!entry) {
+          sendResponse({ ok: false, error: "no saved selector for this host" });
+          break;
+        }
+        const tab = await getActiveTab();
+        await chrome.scripting.insertCSS({ target: { tabId: tab.id }, files: ["content/highlight.css"] });
+        await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ["content/highlighter.js"] });
+        const result = await chrome.tabs.sendMessage(tab.id, { type: "co-lite:flash", selector: entry.selector });
+        sendResponse(result ?? { ok: false });
         break;
       }
       case "co-lite:save-shortlist": {

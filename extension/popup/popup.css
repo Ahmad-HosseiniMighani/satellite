@@ -55,6 +55,44 @@ button.primary { background: #2563eb; color: white; width: 100%; }
 button.primary:disabled { background: #93c5fd; cursor: default; }
 button.secondary { background: #f3f4f6; color: #1f2937; border-color: #e5e7eb; }
 button.secondary:hover { background: #e5e7eb; }
+button.danger { background: #fef2f2; color: #b91c1c; border-color: #fecaca; }
+button.danger:hover { background: #fee2e2; }
+
+.selector-controls { margin-top: 8px; }
+.selector-info {
+  font-size: 11px;
+  color: #4b5563;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  padding: 6px 8px;
+  margin-bottom: 6px;
+  word-break: break-all;
+}
+.selector-btn-row { display: flex; gap: 6px; }
+.selector-btn-row button { flex: 1; font-size: 11px; padding: 6px 4px; }
+
+.selectors-list {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  max-height: 160px;
+  overflow-y: auto;
+}
+.selectors-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  font-size: 11px;
+  padding: 6px 0;
+  border-bottom: 1px solid #f3f4f6;
+}
+.selectors-list .sel-meta { flex: 1; min-width: 0; }
+.selectors-list .sel-host { font-weight: 600; }
+.selectors-list .sel-selector { color: #6b7280; word-break: break-all; }
+.selectors-list button { font-size: 10px; padding: 3px 6px; }
+.selectors-empty { font-size: 11px; color: #9ca3af; padding: 6px 0; }
 
 .tier-row { display: flex; gap: 10px; margin-bottom: 8px; font-size: 12px; }
 

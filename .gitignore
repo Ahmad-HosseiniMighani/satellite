@@ -1,0 +1,9 @@
+node_modules/
+data/cv.md
+data/profile.md
+data/brief.md
+data/jds/
+data/scores/
+data/shortlist.md
+data/site-selectors.yml
+data/.capture-token

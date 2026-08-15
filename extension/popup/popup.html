@@ -18,7 +18,23 @@
     <section id="entity-section">
       <div id="entity-label" class="entity-label">Detecting…</div>
       <div id="picked-banner" class="picked-banner hidden"></div>
+
       <button id="pick-btn" class="secondary hidden">Pick element manually</button>
+      <button id="stop-picker-btn" class="danger hidden">Stop picking</button>
+
+      <div id="selector-controls" class="selector-controls hidden">
+        <div id="selector-info" class="selector-info"></div>
+        <div class="selector-btn-row">
+          <button id="highlight-btn" class="secondary">Highlight</button>
+          <button id="reselect-btn" class="secondary">Reselect</button>
+          <button id="remove-selector-btn" class="danger">Remove</button>
+        </div>
+      </div>
+    </section>
+
+    <section id="selectors-list-section">
+      <button id="toggle-selectors-btn" class="secondary">Show saved selectors</button>
+      <ul id="selectors-list" class="selectors-list hidden"></ul>
     </section>
 
     <section id="tier-section">

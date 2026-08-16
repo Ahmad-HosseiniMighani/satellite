@@ -28,6 +28,34 @@ const CLI_TIMEOUT_MS = 120000;
 const TIERS = new Set(["light", "normal", "ultra"]);
 const VERDICT_RE = /SCORE:\s*(PASS|MARGINAL|FAIL|SKIP)\s*\|\s*([\d.]+|N\/A)\/5\s*\|\s*(.+)/;
 
+// Soft signal only — see the plan's security notes: --allowedTools already
+// makes the real (structural) guarantee that injected text can't trigger a
+// tool call. This just surfaces the *textual* manipulation risk that
+// tool-scoping does NOT cover (a posting trying to talk the model into a
+// fake verdict) so the user can eyeball it, the same way career-ops's own
+// Block G quotes anomalous imperative text rather than silently trusting or
+// silently rejecting it. A match here does not change the score — it's
+// reported alongside it.
+const ANOMALY_PATTERNS = [
+  /ignore (all |any )?(previous|prior|above|earlier) instructions/i,
+  /disregard (the|your|all) (rules|instructions|scoring|criteria)/i,
+  /you (are|must|should) (now |always )?(act as|behave as|output|return|respond)/i,
+  /as an ai( language model)?/i,
+  /^\s*system\s*:/im,
+  /\b(always|automatically) (return|output|respond with)\s*(SCORE:)?\s*PASS/i,
+  /rate (this|the) (job|posting|role)\s*(as\s*)?(5\/5|highly|perfect|maximum)/i,
+  /this is (a test|for testing)[,.]?\s*(ignore|skip|bypass)/i,
+];
+
+function detectAnomalies(text) {
+  const hits = [];
+  for (const re of ANOMALY_PATTERNS) {
+    const m = re.exec(text);
+    if (m) hits.push(m[0].trim().slice(0, 120));
+  }
+  return hits;
+}
+
 function ensureDataDirs() {
   for (const dir of [DATA_DIR, JDS_DIR, SCORES_DIR]) fs.mkdirSync(dir, { recursive: true });
 }
@@ -74,9 +102,9 @@ function cliForTier(tier) {
   return id ? resolveCli(id) : null;
 }
 
-function spawnCli(cli, prompt) {
+function spawnCli(cli, prompt, opts = {}) {
   return new Promise((resolve) => {
-    const args = cli.buildArgs(prompt);
+    const args = cli.buildArgs(prompt, opts);
     const child = spawn(cli.binPath, args, { cwd: ROOT, env: process.env });
     let stdout = "";
     let stderr = "";
@@ -98,7 +126,7 @@ function spawnCli(cli, prompt) {
   });
 }
 
-function writeJdFile(slug, { url, title, company, location, description, tier, ats }) {
+function writeJdFile(slug, { url, title, company, location, description, tier, ats, anomalies }) {
   const header = [
     `# ${title || "Untitled role"}`,
     "",
@@ -106,8 +134,13 @@ function writeJdFile(slug, { url, title, company, location, description, tier, a
     `**Location:** ${location || ""}`,
     `**URL:** ${url || ""}`,
     `**Captured:** ${new Date().toISOString()} (career-ops-lite extension, tier ${tier}${ats ? ` — ${ats} API` : ""})`,
+    anomalies?.length
+      ? `\n**⚠️ Anomaly flag:** this posting contains text matching known prompt-injection patterns (quoted, not obeyed): ${anomalies.map((a) => `"${a}"`).join("; ")}`
+      : "",
     "",
-  ].join("\n");
+  ]
+    .filter((l) => l !== "")
+    .join("\n");
   fs.writeFileSync(path.join(JDS_DIR, `${slug}.md`), header + (description || "").trim() + "\n");
 }
 
@@ -147,11 +180,12 @@ async function handleScore(body, send) {
   const cli = cliForTier(tier);
   if (!cli) return send(503, { ok: false, error: `no CLI available (checked: ${listAvailableClis().join(", ") || "none installed"})` });
 
+  const anomalies = detectAnomalies(jd);
   ensureDataDirs();
   const slug = uniqueSlug(slugify(company || title || "job"));
-  writeJdFile(slug, { url, title, company, location, description: jd, tier, ats });
+  writeJdFile(slug, { url, title, company, location, description: jd, tier, ats, anomalies });
 
-  const { code, stdout, stderr } = await spawnCli(cli, buildScorePrompt(tier, slug));
+  const { code, stdout, stderr } = await spawnCli(cli, buildScorePrompt(tier, slug), { allowedTools: "Read" });
   const matches = [...stdout.matchAll(new RegExp(VERDICT_RE, "g"))];
   const m = matches.at(-1); // last match — the CLI may echo the prompt/instructions earlier
   if (code !== 0 || !m) {
@@ -180,6 +214,7 @@ async function handleScore(body, send) {
     role: title || "",
     jdPath: `data/jds/${slug}.md`,
     scorePath,
+    anomalies, // [] when clean — always present so the popup can render a flag deterministically
   });
 }
 
@@ -192,7 +227,7 @@ async function handleMemory(body, send) {
   const cli = cliForTier("normal");
   if (!cli) return send(503, { ok: false, error: "no CLI available" });
 
-  const { code, stdout } = await spawnCli(cli, buildMemoryPrompt(text));
+  const { code, stdout } = await spawnCli(cli, buildMemoryPrompt(text), { allowedTools: "Read Edit Write", needsEdit: true });
   const m = /MEMORY_UPDATED:\s*(.+)/.exec(stdout);
   if (code !== 0 || !m) return send(502, { ok: false, error: "CLI didn't confirm the edit" });
   send(200, { ok: true, summary: m[1].trim() });

@@ -35,5 +35,6 @@ const prompt = [
 ].join(" ");
 
 const { spawn } = await import("node:child_process");
-const child = spawn(cli.binPath, cli.buildArgs(prompt), { cwd: ROOT, stdio: "inherit" });
+const args = cli.buildArgs(prompt, { allowedTools: "Read Edit Write", needsEdit: true });
+const child = spawn(cli.binPath, args, { cwd: ROOT, stdio: "inherit" });
 child.on("close", (code) => process.exit(code ?? 1));

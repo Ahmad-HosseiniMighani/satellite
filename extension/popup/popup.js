@@ -104,6 +104,9 @@ function renderResult(result) {
   const lines = [
     `${result.verdict ?? "?"} · ${result.score ?? "?"}/5 · ${result.tier} tier`,
     result.mock ? "(mock — relay not running)" : "",
+    result.anomalies?.length
+      ? `\n⚠️ This posting contains text matching known prompt-injection patterns (quoted, not obeyed by the scorer): "${result.anomalies[0]}"${result.anomalies.length > 1 ? ` (+${result.anomalies.length - 1} more)` : ""}`
+      : "",
     "",
     result.reason ?? "",
     result.tier !== "light" && !result.mock ? `\nSaved: ${result.jdPath ?? "data/scores/…"}` : "",

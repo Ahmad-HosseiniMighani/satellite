@@ -127,21 +127,22 @@ function spawnCli(cli, prompt, opts = {}) {
 }
 
 function writeJdFile(slug, { url, title, company, location, description, tier, ats, anomalies }) {
-  const header = [
+  const lines = [
     `# ${title || "Untitled role"}`,
     "",
     `**Company:** ${company || ""}`,
     `**Location:** ${location || ""}`,
     `**URL:** ${url || ""}`,
     `**Captured:** ${new Date().toISOString()} (career-ops-lite extension, tier ${tier}${ats ? ` — ${ats} API` : ""})`,
-    anomalies?.length
-      ? `\n**⚠️ Anomaly flag:** this posting contains text matching known prompt-injection patterns (quoted, not obeyed): ${anomalies.map((a) => `"${a}"`).join("; ")}`
-      : "",
-    "",
-  ]
-    .filter((l) => l !== "")
-    .join("\n");
-  fs.writeFileSync(path.join(JDS_DIR, `${slug}.md`), header + (description || "").trim() + "\n");
+  ];
+  if (anomalies?.length) {
+    lines.push(
+      "",
+      `**⚠️ Anomaly flag:** this posting contains text matching known prompt-injection patterns (quoted, not obeyed): ${anomalies.map((a) => `"${a}"`).join("; ")}`,
+    );
+  }
+  lines.push("", ""); // blank-line separator before body, always present
+  fs.writeFileSync(path.join(JDS_DIR, `${slug}.md`), lines.join("\n") + (description || "").trim() + "\n");
 }
 
 function appendShortlistRow({ url, company, role, tier, verdict, score, jdSlug, date }) {

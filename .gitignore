@@ -5,5 +5,6 @@ data/brief.md
 data/jds/
 data/scores/
 data/shortlist.md
-data/site-selectors.yml
+data/site-selectors.json
+data/settings.json
 data/.capture-token

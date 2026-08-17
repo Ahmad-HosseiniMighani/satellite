@@ -5,6 +5,154 @@ score against your own CV and deal-breakers at one of three tiers, and
 stockpile the good ones. No career-ops checkout required at runtime — this
 project is self-contained.
 
+## How It Works
+
+### The pieces
+
+```
+┌─────────────┐   captured JD text   ┌──────────────────┐   spawns    ┌─────────────┐
+│  extension   │ ───────────────────>│  relay/server.mjs │ ──────────>│  a CLI (-p)  │
+│ (in-browser) │<─────────────────── │  (127.0.0.1:8787)  │<───────────│  e.g. claude │
+└─────────────┘   verdict/score      └──────────────────┘  stdout     └─────────────┘
+                                              │                              │
+                                              │ writes/reads                 │ reads
+                                              ▼                              ▼
+                                     data/jds/{slug}.md            prompts/{tier}.md
+                                     data/scores/{slug}.md         data/cv.md
+                                     data/shortlist.md             data/profile.md
+                                     data/site-selectors.json      data/brief.md
+```
+
+Three independent pieces, talking over plain HTTP/JSON and the filesystem —
+no shared database, no framework, no external dependency beyond Node itself
+and whichever CLI you have installed:
+
+- **`extension/`** — runs in your browser, where you're already logged in.
+  Figures out what's on the page (see Entity detection below), and is the
+  only piece that ever touches the DOM.
+- **`relay/server.mjs`** — a plain `node:http` server. Its only two jobs:
+  turn a `POST /score` into a spawned CLI process and parse its answer, and
+  read/write the small set of files in `data/`. It never talks to the job
+  site itself, never sees your browser session — by the time it gets
+  anything, the extension has already extracted plain text.
+- **The CLI** (`claude`, `codex`, etc.) — a fresh, disposable process per
+  request. It has no memory of previous calls; instead its `cwd` is pinned
+  to this project's root, so its own `Read` tool sees `cv.md`/`profile.md`/
+  `brief.md` fresh every time. **That's the whole memory mechanism** — no
+  conversation history, no prompt cache, just small curated files re-read
+  on disk. Editing `profile.md` (by hand, or via "teach it something") is
+  the entire act of "remembering" something; every future call just reads
+  the updated file for free.
+
+### End-to-end workflow, one capture
+
+1. You click the extension icon on a job posting.
+2. **Entity detection** (all in the browser, before anything is sent
+   anywhere): tries known-ATS APIs first (Tier 0), falls back through a
+   learned selector (Tier 1), auto-detected main content (Tier 2), a manual
+   pick (Tier 3), or raw page text as a last resort (Tier 4). Exactly one of
+   these produces the JD text that gets scored — see `extraction tiers`
+   further down for the full fallback chain.
+3. You pick a tier (light/normal/ultra) and click **Score this page**. The
+   extension POSTs `{tier, jd, url, title, company, ...}` to
+   `relay/server.mjs`.
+4. The relay:
+   - runs its own prompt-injection anomaly scan over the raw JD text
+     (independent of what any model later does with it),
+   - writes the JD to `data/jds/{slug}.md`,
+   - builds a one-line instruction — "read `prompts/{tier}.md` and follow
+     it, the JD is at this path" — and spawns the CLI with that instruction,
+     scoped to exactly the tools that tier needs (`--allowedTools Read` for
+     scoring; nothing more),
+   - the CLI, running fresh in this project's directory, reads whichever
+     files that tier's prompt tells it to (see below), reasons, and prints
+     its answer ending in one machine-parseable line: `SCORE: {verdict} |
+     {X.X}/5 | {reason}`,
+   - the relay regexes out the *last* such line in the output (in case the
+     model echoed instructions earlier), saves the full reasoning to
+     `data/scores/{slug}.md` for normal/ultra, and returns the parsed result
+     as JSON.
+5. The popup renders the verdict card. You either save it to
+   `data/shortlist.md` yourself, or it auto-saves if you had the
+   PASS/MARGINAL toggle on.
+
+Nothing in this path ever writes outside `data/` in this project, and
+nothing auto-submits or auto-applies anywhere — scoring only.
+
+### The three tiers, in detail
+
+Each tier is a separate instruction file in `prompts/` — the relay doesn't
+hardcode any scoring logic itself, it just tells the CLI which file to
+follow.
+
+**Light** (`prompts/light.md`)
+- Reads **only** `data/brief.md` — never opens `cv.md` or `profile.md`.
+  That restriction is the entire reason this tier is cheap: brief.md is a
+  hand-condensed ~1.5–2K-token summary, not your full CV. If `brief.md`
+  doesn't exist or still has unfilled `{placeholder}` text, it refuses and
+  returns a `SKIP` verdict telling you to run `generate-brief.mjs` first.
+- Logic: reads the JD → checks it against `brief.md`'s Hard DQ Criteria
+  list (any hit caps the score at ≤2.5 immediately) → scores five weighted
+  dimensions (archetype fit 30%, comp 25%, location 25%, CV/proof-point
+  match 15%, red-flag deductions) → applies the Priority Override List
+  (force PASS regardless of score, if the company's on it) → bands the
+  result (≥3.5 PASS, 3.0–3.4 MARGINAL, <3.0 FAIL).
+- Output: exactly one line, nothing else. Nothing is written to
+  `data/scores/` — by design, this tier is disposable.
+
+**Normal** (`prompts/normal.md`)
+- Reads `data/cv.md` and `data/profile.md` in full.
+- Logic: Role Summary (what the role actually is, level, team context) →
+  **CV Match** (every JD requirement checked against `cv.md`, tagged
+  met/partial/gap — must cite real CV evidence for a "met," forbidden from
+  inventing experience; a requirement `cv.md` is silent on counts as a gap,
+  not a maybe) → Level & Strategy (seniority fit against `profile.md`'s
+  Identity line) → Comp & Demand (compares stated/estimated comp to your
+  floor; if the JD has no comp listed, the estimate must be labeled as an
+  estimate, never presented as the posted figure) → the same five-dimension
+  weighted score as Light, but grounded in this fuller read.
+- Output: the full reasoning above, as prose, *is* the report — followed by
+  the same one-line `SCORE:` verdict as the last line. The relay saves
+  everything before that line to `data/scores/{slug}.md`.
+
+**Ultra** (`prompts/ultra.md`)
+- Does everything Normal does (it's told to follow `normal.md`'s steps
+  first), then adds two more passes:
+  - **Company Research** — bounded, "a handful of searches, not an
+    open-ended crawl": what the company does in one plain sentence, notable
+    news in roughly the last 12 months, culture signals if findable (with a
+    citation), likely near-term challenges for the role, and how this
+    specific candidate's background plays as an angle into this specific
+    company.
+  - **Legitimacy read** — lightweight, not a fraud investigation:
+    boilerplate-vs-tailored language, AI-buzzword-vs-actual-infrastructure
+    mismatch, anything unusual about the posting itself. Explicitly told
+    not to manufacture a concern if nothing stands out.
+- Research and legitimacy findings can move the red-flag adjustment or
+  comp/level confidence, but the prompt forbids inventing a disqualifier
+  that isn't grounded in something actually found.
+- Output: same shape as Normal (full prose + final `SCORE:` line), saved to
+  `data/scores/{slug}.md` — just longer, with the two extra sections.
+
+### Extraction tiers (how the JD text itself gets captured)
+
+This is what "Entity detection" above actually falls through, in order,
+stopping at the first one that produces text:
+
+| Tier | When | How |
+|---|---|---|
+| 0 | Greenhouse / Lever / Ashby / Workday URL | Background script hits that platform's public, unauthenticated JSON API directly — no DOM access, no login needed even on a gated posting page |
+| 0b | iCIMS URL | Content script reads the page's own embedded `application/ld+json` JobPosting block — no network call at all |
+| 1 | Any host with a previously-picked selector | `document.querySelector(selector)` against the saved selector in `data/site-selectors.json` |
+| 2 | Unknown host, no saved selector | Content-side density heuristic — largest paragraph-dense block under `<main>`/`<article>`/a `<div>`, penalizing link-heavy (nav-like) blocks |
+| 3 | You click "Pick element manually" | Devtools-style hover-highlight + click-to-lock; derives a durable selector (stable `id` > unique class > unique class-combo > bounded structural path) and saves it for next time |
+| 4 | Everything else failed | Whole-page `innerText`, flagged `⚠️ Unverified extraction` in the saved JD file |
+
+Tiers 0/0b never touch the DOM at all — the reason a sign-in-gated posting
+still works is that Tier 1–4 extraction runs *inside your already
+authenticated tab*, not through a separate headless fetch that would need
+your session cookies it doesn't have.
+
 ## Setup (one-time)
 
 1. `cp data/cv.template.md data/cv.md` — fill in your real CV.
@@ -44,14 +192,10 @@ for testing the UI, not for real scoring. Real scores only happen once
    - Anything else → tries to auto-detect the main content block (Tier 2),
      or shows **Pick element manually** so you can click the JD block
      yourself (Tier 3, devtools-style hover-and-click).
-3. Pick a **tier**, then **Score this page**:
-   - **Light** — reads only `brief.md`. Fastest, cheapest, one-line verdict.
-     Nothing saved to disk.
-   - **Normal** — reads `cv.md` + `profile.md`. Structured multi-section
-     reasoning (role summary, CV match, level/strategy, comp), saved to
-     `data/scores/{slug}.md`.
-   - **Ultra** — Normal + a bounded company-research pass + a legitimacy
-     read, also saved to `data/scores/{slug}.md`.
+3. Pick a **tier** (Light/Normal/Ultra), then **Score this page** — see
+   "How It Works" above for exactly what each tier reads and does; in short,
+   Light is a fast disposable one-liner, Normal is a full saved report,
+   Ultra adds company research + a legitimacy read on top of Normal.
 4. **Save to shortlist**: manual button (any verdict — your override) or
    check **auto-save on PASS/MARGINAL** to save automatically whenever a
    score clears the bar. Either way it appends a row to `data/shortlist.md`

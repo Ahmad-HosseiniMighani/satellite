@@ -1,0 +1,39 @@
+{
+  "name": "@ahmad-hosseinimighani/satellite",
+  "version": "0.1.0",
+  "description": "Standalone job-scoring browser extension + local relay -- scores postings against your own CV and deal-breakers, no external dependency at runtime.",
+  "type": "module",
+  "bin": {
+    "satellite": "./bin/satellite.mjs"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "MIT",
+  "author": "Ahmad HosseiniMighani",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Ahmad-HosseiniMighani/satellite.git"
+  },
+  "keywords": [
+    "job-search",
+    "browser-extension",
+    "cli",
+    "ai-agent"
+  ],
+  "files": [
+    "bin/",
+    "relay/",
+    "prompts/",
+    "extension/",
+    "data/cv.template.md",
+    "data/profile.template.md",
+    "AGENTS.md",
+    "CLAUDE.md",
+    "CODEX.md",
+    "OPENCODE.md",
+    "GEMINI.md",
+    "README.md",
+    "LICENSE"
+  ]
+}

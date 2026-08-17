@@ -153,27 +153,53 @@ still works is that Tier 1–4 extraction runs *inside your already
 authenticated tab*, not through a separate headless fetch that would need
 your session cookies it doesn't have.
 
+## Install
+
+Two ways to get it, depending on what you want:
+
+- **Just the relay CLI** (you already have the extension, or you're setting
+  up a new machine): `npm install -g @ahmad-hosseinimighani/satellite`, or
+  run it without installing via `npx @ahmad-hosseinimighani/satellite relay`.
+  This gets you the `satellite` command (§ Commands reference) but **not**
+  the AI-agent onboarding files (`AGENTS.md`, `.claude/skills/`, etc.) or the
+  extension itself — those are project-directory-scoped and only come from
+  a full checkout.
+- **Full checkout** (onboarding, the extension source, everything): `git
+  clone` this repo. This is the only way to get `/satellite` (or its
+  equivalent in other AI CLIs) and the unpacked extension.
+
 ## Setup (one-time)
 
+**Option A — guided, via an AI coding CLI** (recommended): open this project
+directory in Claude Code, Codex, OpenCode, Cursor, or any CLI that reads
+`AGENTS.md`, and run the onboarding command — see "AI Agent Commands" below
+for the exact invocation per CLI. It'll interview you for your CV and
+profile, write `data/cv.md`/`data/profile.md`, and generate `data/brief.md`
+itself, in one guided flow.
+
+**Option B — manual**:
 1. `cp data/cv.template.md data/cv.md` — fill in your real CV.
 2. `cp data/profile.template.md data/profile.md` — fill in archetypes, comp
    floor, location policy, deal-breakers, etc.
-3. `node relay/generate-brief.mjs` — spawns a CLI to condense `profile.md`
-   into `data/brief.md` (the file the **light** tier reads). Re-run this
-   anytime you've edited `profile.md` by hand and want `brief.md` caught up;
-   the extension's "teach it something" input keeps both in sync on its own
-   after that.
+3. `satellite brief` (or `node relay/generate-brief.mjs` from a full
+   checkout) — spawns a CLI to condense `profile.md` into `data/brief.md`
+   (the file the **light** tier reads). Re-run this anytime you've edited
+   `profile.md` by hand and want `brief.md` caught up; the extension's
+   "teach it something" input keeps both in sync on its own after that.
 
 `data/cv.md`, `data/profile.md`, and `data/brief.md` are gitignored — your
 data, never committed.
 
 ## Running it
 
-1. **Start the relay**: `node relay/server.mjs` — listens on
-   `http://127.0.0.1:8787`, binds localhost only. Leave it running in a
-   terminal while you use the extension.
+1. **Start the relay**: `satellite relay` (npm install/npx) or `node
+   relay/server.mjs` (full checkout) — listens on `http://127.0.0.1:8787` by
+   default (`satellite relay --port <n>` to change it), binds localhost
+   only. Leave it running in a terminal while you use the extension.
 2. **Load the extension**: `chrome://extensions` → enable **Developer mode**
    → **Load unpacked** → select this repo's `extension/` folder → pin it.
+   (Requires a full checkout — the npm package doesn't ship the extension,
+   see "Install" above.)
 
 If the relay isn't running, the popup shows a **relay down (mock)** badge
 and scoring still works, but returns clearly-labeled fake verdicts — useful
@@ -212,14 +238,46 @@ for testing the UI, not for real scoring. Real scores only happen once
    popup mid-pick and come back, it won't lose track or show the wrong
    button.
 
+## AI Agent Commands
+
+satellite isn't Claude-Code-only. `AGENTS.md` at the project root is the
+canonical instructions file — the mode-routing table, onboarding steps, and
+status logic all live there, once, and every CLI-specific file below just
+points to it. Exact invocation depends on how your CLI discovers commands:
+
+| CLI | How to invoke | What it reads |
+|---|---|---|
+| Claude Code | `/satellite`, `/satellite onboard`, `/satellite status` | `.claude/skills/satellite/SKILL.md` → `AGENTS.md` |
+| Cursor | `/satellite` (auto-discovered) | `.cursor/skills/satellite/SKILL.md` → `AGENTS.md` |
+| Codex | Say "run satellite onboarding" / "satellite status" — Codex reads `AGENTS.md`/`CODEX.md` in the project root automatically, no slash-command registration needed | `CODEX.md` → `AGENTS.md` |
+| OpenCode | Same as Codex | `OPENCODE.md` → `AGENTS.md` |
+| Gemini / Antigravity CLI | Same as Codex | `GEMINI.md` → `AGENTS.md` |
+| Any other CLI | Point it at `AGENTS.md` directly and ask for "onboarding" or "status" | `AGENTS.md` |
+
+Three modes exist today, same behavior regardless of which CLI runs them:
+
+| Mode | Command / phrasing | What it does |
+|---|---|---|
+| (default, no argument) | `/satellite` or "run satellite" | Checks `data/profile.md` — unfilled → runs onboarding; already filled → shows status |
+| Onboarding | `/satellite onboard` or "run satellite onboarding" | Interviews you for CV + profile (skipping anything already filled), writes `data/cv.md`/`data/profile.md`, generates `data/brief.md`, then tells you the two manual steps left (start the relay, load the extension) |
+| Status | `/satellite status` or "satellite status" | Reports which of `cv.md`/`profile.md`/`brief.md` are filled/missing/placeholder, flags a possibly-stale `brief.md`, changes nothing |
+
+More modes (e.g. scoring or relay control from inside a chat session) are
+planned but not built — the routing table in `AGENTS.md` is deliberately
+left open for them.
+
 ## Commands reference
 
 | Command | What it does |
 |---|---|
-| `node relay/server.mjs` | Starts the relay on `127.0.0.1:8787` |
-| `node relay/generate-brief.mjs [cliId]` | One-off: derive `brief.md` from `profile.md`. Optional CLI id (`claude`, `codex`, ...) to force which one; defaults to the first installed |
+| `satellite relay [--port <n>]` (npm) / `node relay/server.mjs` (checkout) | Starts the relay, default port 8787 |
+| `satellite brief [cliId]` (npm) / `node relay/generate-brief.mjs [cliId]` (checkout) | One-off: derive `brief.md` from `profile.md`. Optional CLI id (`claude`, `codex`, ...) to force which one; defaults to the first installed |
+| `satellite --help` | Usage |
 
-Everything else happens through the extension popup, not the command line.
+Onboarding/status aren't `satellite` CLI subcommands — they're interactive,
+so they only exist as AI-agent commands (table above), not something you'd
+run from a plain terminal.
+
 The relay's own HTTP endpoints (for curl-testing or debugging):
 
 | Endpoint | Purpose |
@@ -250,12 +308,22 @@ The relay's own HTTP endpoints (for curl-testing or debugging):
 
 ## What's not built yet
 
-- **Onboarding wizard** — setup above is manual copy-and-fill, no guided
-  interactive flow.
-- **Multi-CLI verified** — only `claude` has been tested end-to-end. The
-  other six (`codex`, `opencode`, `copilot`, `qwen`, `agy`, `grok`) are
-  wired into `relay/clis.mjs` but their permission/non-interactive flags are
-  unverified guesses.
+- **Multi-CLI verified only at the relay/scoring layer, and only for
+  `claude`.** The onboarding/status commands route through `AGENTS.md` for
+  all seven CLIs `relay/clis.mjs` knows about, but only Claude Code's actual
+  slash-command discovery and the relay's `claude -p` invocation (with
+  working `--allowedTools`/`--permission-mode` flags) have been exercised
+  end-to-end. Codex/OpenCode/Copilot/Qwen/Antigravity/Grok reading
+  `AGENTS.md` and running scoring calls through the relay are both
+  unverified — the wiring exists, nobody's confirmed it works on those CLIs.
+- **npm package not published.** `package.json`/`bin/satellite.mjs` are
+  structured and `npm pack --dry-run` produces a clean, dependency-free
+  tarball, but nothing's been pushed to the npm registry yet — `npx
+  @ahmad-hosseinimighani/satellite` won't resolve until that happens.
+- **Extension not submitted to any store.** Chrome Web Store / Firefox AMO
+  listings are unpacked-load only for now; packaging for store submission
+  (icons need to stop being placeholder circles, a store listing, a
+  privacy-practices disclosure given the relay/CLI access) is unstarted.
 - **Tier 0 API shapes** — Greenhouse/Lever/Ashby/Workday single-job
   endpoints are code-reviewed, not yet confirmed against a real live
   posting of each type.

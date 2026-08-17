@@ -10,7 +10,7 @@ if (!window.__careerOpsLitePickerActive) {
 
   const banner = document.createElement("div");
   banner.className = "co-lite-picker-banner";
-  banner.textContent = "career-ops-lite: click the job description block (Esc to cancel)";
+  banner.textContent = "satellite: click the job description block (Esc to cancel)";
   document.documentElement.appendChild(banner);
 
   function positionOverlay(el) {

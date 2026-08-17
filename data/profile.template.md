@@ -1,4 +1,4 @@
-# {Your Name} — career-ops-lite Profile
+# {Your Name} — satellite Profile
 
 <!-- ============================================================
      Copy this file to data/profile.md (gitignored, your own data)

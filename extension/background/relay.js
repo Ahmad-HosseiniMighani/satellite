@@ -1,5 +1,5 @@
 // Thin client for the local relay (relay/server.mjs, not built yet — see
-// career-ops-lite plan). Until it exists (or whenever it's unreachable), every
+// satellite's plan). Until it exists (or whenever it's unreachable), every
 // call falls back to a canned mock response so the extension UI is fully
 // clickable/testable on its own. Once relay/server.mjs is running, real
 // responses take over automatically — no extension-side flag to flip.

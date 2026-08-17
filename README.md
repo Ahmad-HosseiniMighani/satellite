@@ -1,4 +1,4 @@
-# career-ops-lite
+# satellite
 
 Standalone job-scoring browser extension. Click it on a job posting, get a
 score against your own CV and deal-breakers at one of three tiers, and

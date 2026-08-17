@@ -78,7 +78,17 @@ async function renderSelectorsList() {
     const li = document.createElement("li");
     const meta = document.createElement("div");
     meta.className = "sel-meta";
-    meta.innerHTML = `<div class="sel-host">${hostname}</div><div class="sel-selector">${info.kind}: ${info.selector}</div>`;
+    // textContent, not innerHTML: info.selector is derived from a page's own
+    // id/class attributes (Tier-3 picker), only CSS.escape()'d — that guards
+    // CSS-selector syntax, not HTML, so a crafted id/class could otherwise
+    // inject markup here.
+    const hostDiv = document.createElement("div");
+    hostDiv.className = "sel-host";
+    hostDiv.textContent = hostname;
+    const selDiv = document.createElement("div");
+    selDiv.className = "sel-selector";
+    selDiv.textContent = `${info.kind}: ${info.selector}`;
+    meta.append(hostDiv, selDiv);
     const removeBtn = document.createElement("button");
     removeBtn.className = "danger";
     removeBtn.textContent = "Remove";

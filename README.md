@@ -1,15 +1,24 @@
-# satellite
+# Satellite 1.4 (Beta)
+
+![Satellite](./git-logo.png)
 
 Standalone job-scoring browser extension. Click it on a job posting, get a
 score against your own CV and deal-breakers at one of three tiers, and
-stockpile the good ones. No career-ops checkout required at runtime — this
-project is self-contained.
+stockpile the good ones.
+
+This is an Beta version of extension and relay, I am using it myself and it helps me handpick some gated positions without violating anything :) (fingers crossed).
+
+Useful for anyone who is tired of copy pasting everything, and want to have something similar to LinkedIn AI to evaluate their CV and stories against jobs.
+
+Feel free to report issues, custom features, or even pull requests.
+
+Inspired by [career-ops](https://github.com/santifer/career-ops) by [Santiago Fernández de Valderrama Aparicio](https://github.com/santifer).
 
 ## How It Works
 
 ### The pieces
 
-```
+```txt
 ┌─────────────┐   captured JD text   ┌──────────────────┐   spawns    ┌─────────────┐
 │  extension   │ ───────────────────>│  relay/server.mjs │ ──────────>│  a CLI (-p)  │
 │ (in-browser) │<─────────────────── │  (127.0.0.1:8787)  │<───────────│  e.g. claude │
@@ -86,6 +95,7 @@ hardcode any scoring logic itself, it just tells the CLI which file to
 follow.
 
 **Light** (`prompts/light.md`)
+
 - Reads **only** `data/brief.md` — never opens `cv.md` or `profile.md`.
   That restriction is the entire reason this tier is cheap: brief.md is a
   hand-condensed ~1.5–2K-token summary, not your full CV. If `brief.md`
@@ -101,6 +111,7 @@ follow.
   `data/scores/` — by design, this tier is disposable.
 
 **Normal** (`prompts/normal.md`)
+
 - Reads `data/cv.md` and `data/profile.md` in full.
 - Logic: Role Summary (what the role actually is, level, team context) →
   **CV Match** (every JD requirement checked against `cv.md`, tagged
@@ -116,6 +127,7 @@ follow.
   everything before that line to `data/scores/{slug}.md`.
 
 **Ultra** (`prompts/ultra.md`)
+
 - Does everything Normal does (it's told to follow `normal.md`'s steps
   first), then adds two more passes:
   - **Company Research** — bounded, "a handful of searches, not an
@@ -140,7 +152,7 @@ This is what "Entity detection" above actually falls through, in order,
 stopping at the first one that produces text:
 
 | Tier | When | How |
-|---|---|---|
+| --- | --- | --- |
 | 0 | Greenhouse / Lever / Ashby / Workday URL | Background script hits that platform's public, unauthenticated JSON API directly — no DOM access, no login needed even on a gated posting page |
 | 0b | iCIMS URL | Content script reads the page's own embedded `application/ld+json` JobPosting block — no network call at all |
 | 1 | Any host with a previously-picked selector | `document.querySelector(selector)` against the saved selector in `data/site-selectors.json` |
@@ -178,6 +190,7 @@ profile, write `data/cv.md`/`data/profile.md`, and generate `data/brief.md`
 itself, in one guided flow.
 
 **Option B — manual**:
+
 1. `cp data/cv.template.md data/cv.md` — fill in your real CV.
 2. `cp data/profile.template.md data/profile.md` — fill in archetypes, comp
    floor, location policy, deal-breakers, etc.
@@ -246,7 +259,7 @@ status logic all live there, once, and every CLI-specific file below just
 points to it. Exact invocation depends on how your CLI discovers commands:
 
 | CLI | How to invoke | What it reads |
-|---|---|---|
+| --- | --- | --- |
 | Claude Code | `/satellite`, `/satellite onboard`, `/satellite status` | `.claude/skills/satellite/SKILL.md` → `AGENTS.md` |
 | Cursor | `/satellite` (auto-discovered) | `.cursor/skills/satellite/SKILL.md` → `AGENTS.md` |
 | Codex | Say "run satellite onboarding" / "satellite status" — Codex reads `AGENTS.md`/`CODEX.md` in the project root automatically, no slash-command registration needed | `CODEX.md` → `AGENTS.md` |
@@ -257,7 +270,7 @@ points to it. Exact invocation depends on how your CLI discovers commands:
 Three modes exist today, same behavior regardless of which CLI runs them:
 
 | Mode | Command / phrasing | What it does |
-|---|---|---|
+| --- | --- | --- |
 | (default, no argument) | `/satellite` or "run satellite" | Checks `data/profile.md` — unfilled → runs onboarding; already filled → shows status |
 | Onboarding | `/satellite onboard` or "run satellite onboarding" | Interviews you for CV + profile (skipping anything already filled), writes `data/cv.md`/`data/profile.md`, generates `data/brief.md`, then tells you the two manual steps left (start the relay, load the extension) |
 | Status | `/satellite status` or "satellite status" | Reports which of `cv.md`/`profile.md`/`brief.md` are filled/missing/placeholder, flags a possibly-stale `brief.md`, changes nothing |
@@ -269,7 +282,7 @@ left open for them.
 ## Commands reference
 
 | Command | What it does |
-|---|---|
+| --- | --- |
 | `satellite relay [--port <n>]` (npm) / `node relay/server.mjs` (checkout) | Starts the relay, default port 8787 |
 | `satellite brief [cliId]` (npm) / `node relay/generate-brief.mjs [cliId]` (checkout) | One-off: derive `brief.md` from `profile.md`. Optional CLI id (`claude`, `codex`, ...) to force which one; defaults to the first installed |
 | `satellite --help` | Usage |
@@ -281,7 +294,7 @@ run from a plain terminal.
 The relay's own HTTP endpoints (for curl-testing or debugging):
 
 | Endpoint | Purpose |
-|---|---|
+| --- | --- |
 | `GET /health` | `{ok, clis}` — which CLIs are installed and detected |
 | `POST /score` | `{tier, jd, url, title, company, location?, ats?}` → verdict/score/reason |
 | `POST /memory` | `{text}` → edits `profile.md` + `brief.md` |

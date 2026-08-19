@@ -1,6 +1,6 @@
 // Own multi-CLI detection — same DESIGN as career-ops's web/src/lib/clis.ts
 // (find a binary on PATH, build headless argv per CLI) but written from
-// scratch for this project: no import of career-ops code at runtime.
+// scratch.
 import { existsSync, accessSync, constants } from "node:fs";
 import path from "node:path";
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Small standalone HTTP relay for the satellite extension. No
-// dashboard, no dependency on the career-ops repo, no npm dependencies at
+// dashboard, no npm dependencies at
 // all — plain node:http + node:child_process is enough for what this does:
 // spawn a headless CLI with cwd pointed at this project's own data/ folder
 // (that's the whole "memory" mechanism — see the plan's Context section) and

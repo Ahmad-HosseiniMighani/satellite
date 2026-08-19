@@ -11,8 +11,7 @@ export function detect(url) {
   return { ats: "greenhouse", token: m[1], jobId: m[2] };
 }
 
-// The board-list endpoint (boards-api.greenhouse.io/v1/boards/{token}/jobs) is the
-// one career-ops's own scanner uses, but that returns every posting on the board —
+// The board-list endpoint (boards-api.greenhouse.io/v1/boards/{token}/jobs) returns every posting on the board —
 // wasteful for "the user has one job open." This single-job form is Greenhouse's
 // documented content=true variant; verify it stays live if Greenhouse changes shape.
 export async function fetchJob(match) {

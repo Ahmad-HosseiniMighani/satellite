@@ -1,5 +1,4 @@
-// iCIMS has no public JSON API (confirmed against career-ops's own scanner, which
-// resorts to scraping hosted search-result pages for this platform). For a
+// iCIMS has no public JSON API. For a
 // single already-open posting the cheapest source is the JobPosting JSON-LD
 // block iCIMS already embeds in the rendered page — no network fetch needed,
 // which is why this is "Tier 0b": detection lives here, but extraction happens

@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "satellite",
   "version": "0.1.0",
-  "description": "Score job postings while you browse — light/normal/ultra tiers, scored against your own CV and deal-breakers, no career-ops checkout required.",
+  "description": "Score job postings while you browse — light/normal/ultra tiers, scored against your own CV and deal-breakers.",
   "permissions": ["activeTab", "scripting", "storage"],
   "host_permissions": [
     "http://127.0.0.1/*",

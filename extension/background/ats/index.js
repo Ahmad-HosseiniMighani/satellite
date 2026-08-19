@@ -4,10 +4,7 @@ import * as ashby from "./ashby.js";
 import * as workday from "./workday.js";
 import * as icims from "./icims.js";
 
-// First provider whose detect() matches wins — same "first match" dispatch
-// career-ops's own providers/_registry.mjs uses server-side, reimplemented
-// here with zero shared code (this extension has no runtime dependency on
-// the career-ops repo).
+// First provider whose detect() matches wins.
 const PROVIDERS = [greenhouse, lever, ashby, workday, icims];
 
 // Returns null (no known ATS — caller falls through to Tier 1-4 DOM capture)

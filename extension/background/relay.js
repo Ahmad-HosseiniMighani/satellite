@@ -1,8 +1,6 @@
-// Thin client for the local relay (relay/server.mjs, not built yet — see
-// satellite's plan). Until it exists (or whenever it's unreachable), every
-// call falls back to a canned mock response so the extension UI is fully
-// clickable/testable on its own. Once relay/server.mjs is running, real
-// responses take over automatically — no extension-side flag to flip.
+// Thin client for the local relay (relay/server.mjs). Every call talks to
+// the relay directly — no mock fallback. If the relay is down or a call
+// fails, the error propagates to the caller instead of a canned response.
 
 const DEFAULT_BASE = "http://127.0.0.1:8787";
 const HEALTH_TIMEOUT_MS = 800;
@@ -52,48 +50,12 @@ async function post(path, body) {
   return res.json();
 }
 
-function mockScore(tier, { company, title }) {
-  const bands = {
-    light: { verdict: "PASS", score: 4.1, reason: "[mock] archetype fit, comp/location clear the bar" },
-    normal: { verdict: "MARGINAL", score: 3.6, reason: "[mock] solid CV match, comp is borderline" },
-    ultra: { verdict: "PASS", score: 4.4, reason: "[mock] strong fit, company research turned up nothing concerning" },
-  };
-  const band = bands[tier] ?? bands.light;
-  return {
-    ok: true,
-    mock: true,
-    tier,
-    verdict: band.verdict,
-    score: band.score,
-    reason: band.reason,
-    company: company || "Unknown Co",
-    role: title || "Unknown Role",
-    jdPath: `data/jds/${(company || "unknown").toLowerCase()}.md`,
-  };
-}
-
 export async function score(tier, payload) {
-  try {
-    return await post("/score", { tier, ...payload });
-  } catch {
-    return mockScore(tier, payload);
-  }
-}
-
-export async function saveMemory(text) {
-  try {
-    return await post("/memory", { text });
-  } catch {
-    return { ok: true, mock: true, note: "relay unreachable — noted locally only, not yet written to profile.md" };
-  }
+  return post("/score", { tier, ...payload });
 }
 
 export async function saveShortlist(entry) {
-  try {
-    return await post("/shortlist", entry);
-  } catch {
-    return { ok: true, mock: true, note: "relay unreachable — not yet written to shortlist.md" };
-  }
+  return post("/shortlist", entry);
 }
 
 // Cross-machine selector sync (Tier 1's "refreshed from the relay" half —
@@ -107,7 +69,7 @@ export async function syncSelector(hostname, entry) {
   try {
     return await post("/selectors", { hostname, ...entry });
   } catch {
-    return { ok: false, mock: true };
+    return { ok: false };
   }
 }
 

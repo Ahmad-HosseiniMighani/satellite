@@ -33,13 +33,17 @@ Read `data/cv.md` and `data/profile.md` in full.
 5. **Comp & Demand** — compare stated/estimated comp against `profile.md`'s
    Comp Strategy. If no comp is stated, estimate from title/company
    size/location and say so explicitly (never present an estimate as if it
-   were the posted figure).
+   were the posted figure). An estimated figure must never trigger the Hard
+   DQ Criteria's comp-floor clause — that clause fires only on a comp ceiling
+   the JD explicitly states. A low estimate instead docks the Comp dimension
+   score in step 6.
 
 6. **Score**, same five weighted dimensions as the light tier (archetype
    fit 30%, comp 25%, location 25%, CV match 15%, red-flag adjustment from
    `profile.md`'s Soft Red Flags and Hard DQ Criteria) — but grounded in the
    fuller analysis above, not brief.md's compressed version. Round to
-   nearest 0.1.
+   nearest 0.1. Reminder: Hard DQ's comp-floor clause applies only to a
+   JD-stated comp ceiling, never step 5's estimate.
 
 7. **Verdict**: ≥ 3.5 → PASS. 3.0-3.4 → MARGINAL. < 3.0 → FAIL. Priority
    Override List in `profile.md` forces PASS regardless of score.

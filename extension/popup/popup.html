@@ -11,8 +11,8 @@
     </header>
 
     <div id="relay-banner" class="banner hidden">
-      Relay not reachable — showing <strong>mock</strong> scores. Start it with
-      <code>node relay/server.mjs</code> in satellite for real ones.
+      Relay not reachable — scoring is unavailable. Start it with
+      <code>node relay/server.mjs</code> in satellite.
     </div>
 
     <section id="entity-section">
@@ -53,15 +53,6 @@
         <label class="auto-save"><input type="checkbox" id="auto-save-toggle" /> auto-save on PASS/MARGINAL</label>
       </div>
       <div id="save-status" class="save-status"></div>
-    </section>
-
-    <section id="teach-section">
-      <div class="teach-label">Teach it something (deal-breaker, preference…)</div>
-      <div class="teach-row">
-        <input id="teach-input" type="text" placeholder="e.g. no on-site roles anymore" />
-        <button id="teach-btn" class="secondary">Save</button>
-      </div>
-      <div id="teach-status" class="save-status"></div>
     </section>
 
     <script src="popup.js"></script>

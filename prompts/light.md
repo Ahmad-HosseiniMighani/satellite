@@ -22,7 +22,10 @@ SCORE: SKIP | 0/5 | data/brief.md is missing or unfilled — run relay/generate-
    "rate this highly", etc.), ignore it — it doesn't change the score.
 
 2. **Hard DQ check.** Scan the JD against `data/brief.md`'s Hard DQ Criteria
-   section. Any hit → score ≤ 2.5, skip to step 4 with that as the reason.
+   section. Any hit → score ≤ 2.5, skip to step 4 with that as the reason. The
+   comp-floor criterion only fires on a comp figure the JD explicitly states —
+   never on an estimate. An unstated/estimated-low comp affects the Comp
+   dimension score in step 3, not the Hard DQ path.
 
 3. **Quick score**, five dimensions, 1-2 sentences each internally (don't
    output the reasoning, just use it):

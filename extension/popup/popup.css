@@ -111,10 +111,6 @@ button.danger:hover { background: #fee2e2; }
 .auto-save { font-size: 11px; color: #6b7280; display: flex; align-items: center; gap: 4px; }
 .save-status { font-size: 11px; color: #6b7280; margin-top: 4px; min-height: 14px; }
 
-.teach-label { font-size: 12px; color: #4b5563; margin-bottom: 6px; }
-.teach-row { display: flex; gap: 6px; }
-#teach-input { flex: 1; padding: 6px 8px; border: 1px solid #e5e7eb; border-radius: 6px; font: inherit; }
-
 .spinner {
   display: inline-block;
   width: 12px;

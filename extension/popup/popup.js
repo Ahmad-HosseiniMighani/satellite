@@ -10,9 +10,16 @@ function selectedTier() {
 
 function renderRelayBadge(up) {
   const badge = $("relay-badge");
-  badge.textContent = up ? "relay up" : "relay down (mock)";
+  badge.textContent = up ? "relay up" : "relay down";
   badge.className = `badge ${up ? "badge-up" : "badge-down"}`;
   $("relay-banner").classList.toggle("hidden", up);
+}
+
+function setScoringButton(scoring) {
+  const btn = $("score-btn");
+  btn.disabled = scoring;
+  if (scoring) btn.innerHTML = '<span class="spinner"></span>Scoring…';
+  else btn.textContent = "Score this page";
 }
 
 let currentHostname = null;
@@ -30,7 +37,7 @@ async function renderEntity() {
   currentHostname = state.hostname;
   $("entity-label").textContent = state.entity.label;
   renderRelayBadge(state.relayUp);
-  $("score-btn").disabled = false;
+  setScoringButton(state.scoring);
 
   // Three mutually exclusive states for the picker area: actively picking on
   // this tab, a selector already saved for this host, or neither (offer to
@@ -110,22 +117,27 @@ function verdictClass(verdict) {
 function renderResult(result) {
   $("result-section").classList.remove("hidden");
   const card = $("result-card");
+  if (result.ok === false) {
+    card.className = "result-card verdict-FAIL";
+    card.textContent = `Scoring failed: ${result.error ?? "unknown error"}`;
+    return result;
+  }
   card.className = verdictClass(result.verdict);
   const lines = [
     `${result.verdict ?? "?"} · ${result.score ?? "?"}/5 · ${result.tier} tier`,
-    result.mock ? "(mock — relay not running)" : "",
     result.anomalies?.length
       ? `\n⚠️ This posting contains text matching known prompt-injection patterns (quoted, not obeyed by the scorer): "${result.anomalies[0]}"${result.anomalies.length > 1 ? ` (+${result.anomalies.length - 1} more)` : ""}`
       : "",
     "",
     result.reason ?? "",
-    result.tier !== "light" && !result.mock ? `\nSaved: ${result.jdPath ?? "data/scores/…"}` : "",
+    result.tier !== "light" ? `\nSaved: ${result.jdPath ?? "data/scores/…"}` : "",
   ].filter(Boolean);
   card.textContent = lines.join("\n");
   return result;
 }
 
 async function maybeAutoSave(result) {
+  if (result.ok === false) return;
   const auto = $("auto-save-toggle").checked;
   const qualifies = result.verdict === "PASS" || result.verdict === "MARGINAL";
   if (auto && qualifies) {
@@ -145,23 +157,20 @@ async function doSave(result, statusPrefix = "saved") {
     date: new Date().toISOString().slice(0, 10),
   };
   const res = await send({ type: "co-lite:save-shortlist", payload });
-  $("save-status").textContent = res?.mock ? `${statusPrefix} (mock — relay not running)` : `${statusPrefix} to shortlist.md`;
+  $("save-status").textContent = res?.ok === false ? `save failed: ${res.error ?? "unknown error"}` : `${statusPrefix} to shortlist.md`;
 }
 
 let lastResult = null;
 
 async function onScore() {
-  const btn = $("score-btn");
-  btn.disabled = true;
-  btn.innerHTML = '<span class="spinner"></span>Scoring…';
+  setScoringButton(true);
   try {
     const result = await send({ type: "co-lite:capture", tier: selectedTier() });
     lastResult = result;
     renderResult(result);
     await maybeAutoSave(result);
   } finally {
-    btn.disabled = false;
-    btn.textContent = "Score this page";
+    setScoringButton(false);
   }
 }
 
@@ -200,14 +209,6 @@ async function init() {
     $("toggle-selectors-btn").textContent = willShow ? "Hide saved selectors" : "Show saved selectors";
   });
   $("save-btn").addEventListener("click", () => lastResult && doSave(lastResult));
-  $("teach-btn").addEventListener("click", async () => {
-    const input = $("teach-input");
-    const text = input.value.trim();
-    if (!text) return;
-    const res = await send({ type: "co-lite:teach", text });
-    $("teach-status").textContent = res?.mock ? "noted (mock — relay not running)" : "saved to profile.md";
-    input.value = "";
-  });
 }
 
 init();

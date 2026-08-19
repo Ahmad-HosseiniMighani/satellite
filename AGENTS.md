@@ -52,12 +52,13 @@ Walk through these steps **in order**, but **skip any step whose target is alrea
 
 ### 1. CV (`data/cv.md`)
 
-If missing or still a placeholder, ask:
+If missing or still a placeholder, prompt the user like so:
 
 > "I don't have your CV yet. You can either:
 > 1. Paste your CV here and I'll convert it to markdown
 > 2. Paste your LinkedIn URL and I'll extract the key info
 > 3. Tell me about your experience and I'll draft one for you
+> 4. point me to your CV file (example: ./data/my-cv.pdf)
 >
 > Which do you prefer?"
 
@@ -65,14 +66,32 @@ Write `data/cv.md` from whatever they give you. Use `data/cv.template.md`'s sect
 
 ### 2. Profile (`data/profile.md`)
 
-If missing or still a placeholder, ask for:
-- Target archetypes / roles (what they're actually applying for)
-- Comp floor and any conditions (e.g. "$150k, but only if fully remote")
-- Location policy (remote/hybrid/on-site tolerance, relocation, travel limits)
-- Hard dealbreakers (instant no's — clearance requirements they lack, domains they won't touch, etc.)
-- Soft red flags (things that dock a score but aren't disqualifying)
-- Any companies that should always pass regardless of score (priority override)
-- 2-3 strongest proof points — quantified accomplishments worth leading with
+If missing or still a placeholder, ask the following as 7 separate
+interactive prompts, one need at a time (not a single flat list). When
+`data/cv.md` exists and is filled, derive a suggested default for each from
+its actual content — skills, role titles, quantified bullets, stated
+location — and offer it as something the user can accept, tweak, or replace
+outright. If `data/cv.md` doesn't exist yet or has no relevant signal for a
+given item, skip the suggestion and just ask the question plainly.
+
+1. **Target archetypes / roles** — what they're actually applying for.
+   Suggest from the CV's Skills/Experience pattern (e.g. recurring stack,
+   recurring seniority/title, any founder/lead pattern).
+2. **Comp floor and any conditions** (e.g. "$150k, but only if fully
+   remote"). CVs rarely state comp — ask directly, no default.
+3. **Location policy** (remote/hybrid/on-site tolerance, relocation, travel
+   limits). Suggest from the CV's own header/location line and any
+   hybrid/on-site roles it lists as tolerated.
+4. **Hard dealbreakers** — instant no's (clearance requirements they lack,
+   domains they won't touch, etc.). No CV-derived default — ask directly.
+5. **Soft red flags** — things that dock a score but aren't disqualifying.
+   No CV-derived default — ask directly.
+6. **Priority override companies** — any that should always pass regardless
+   of score. No CV-derived default — ask directly.
+7. **2-3 strongest proof points** — quantified accomplishments worth
+   leading with. Suggest 2-3 of the CV's most quantified bullets (biggest
+   numbers: users served, % improvement, $ value, team size) as a starting
+   shortlist.
 
 Write `data/profile.md` using **exactly** `data/profile.template.md`'s section headings (Identity, Target Archetypes, Proof Points, Comp Strategy, Location Scoring, Hard DQ Criteria, Soft Red Flags, Priority Override List, Deal-Breakers) — `prompts/normal.md` and `prompts/ultra.md` expect this structure when they read it later, so don't improvise different headings.
 

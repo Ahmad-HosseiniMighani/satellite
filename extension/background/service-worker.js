@@ -1,5 +1,5 @@
 import { detectAts } from "./ats/index.js";
-import { checkHealth, score, saveMemory, saveShortlist, syncSelector, fetchSelectors } from "./relay.js";
+import { checkHealth, score, saveShortlist, syncSelector, fetchSelectors } from "./relay.js";
 
 function capitalize(s) {
   return s ? s[0].toUpperCase() + s.slice(1) : s;
@@ -36,11 +36,49 @@ async function clearPickerActive(tabId) {
   }
 }
 
-// A picker left active on a tab that's since navigated or closed is a stale
-// "Stop picking" button that does nothing — clear it opportunistically.
-chrome.tabs.onRemoved.addListener((tabId) => clearPickerActive(tabId));
+// Scoring-in-progress flag and last result, both keyed by tabId — not a
+// single global slot. Without this, reopening the popup on a different tab
+// would show the previous tab's still-disabled button or its stale score
+// (the "score from previous page will stuck" bug).
+async function getScoringTabs() {
+  const { scoringTabs = {} } = await chrome.storage.local.get("scoringTabs");
+  return scoringTabs;
+}
+
+async function setScoring(tabId, active) {
+  const scoringTabs = await getScoringTabs();
+  if (active) scoringTabs[tabId] = true;
+  else delete scoringTabs[tabId];
+  await chrome.storage.local.set({ scoringTabs });
+}
+
+async function getLastCaptureMap() {
+  const { lastCaptureByTab = {} } = await chrome.storage.local.get("lastCaptureByTab");
+  return lastCaptureByTab;
+}
+
+async function setLastCapture(tabId, result) {
+  const lastCaptureByTab = await getLastCaptureMap();
+  lastCaptureByTab[tabId] = result;
+  await chrome.storage.local.set({ lastCaptureByTab });
+}
+
+async function clearTabState(tabId) {
+  await clearPickerActive(tabId);
+  await setScoring(tabId, false);
+  const lastCaptureByTab = await getLastCaptureMap();
+  if (tabId in lastCaptureByTab) {
+    delete lastCaptureByTab[tabId];
+    await chrome.storage.local.set({ lastCaptureByTab });
+  }
+}
+
+// A picker left active, an in-flight score flag, or a stale captured result
+// on a tab that's since navigated or closed is all dead state — clear it
+// opportunistically the same way for all three.
+chrome.tabs.onRemoved.addListener((tabId) => clearTabState(tabId));
 chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
-  if (changeInfo.status === "loading") clearPickerActive(tabId);
+  if (changeInfo.status === "loading") clearTabState(tabId);
 });
 
 // Runs the full Tier 0 → 0b → 1 → 2 → 4 chain and returns the first tier that
@@ -90,6 +128,7 @@ async function getState(tab) {
   const learned = (await getLearnedSelectors())[hostname];
   const relayUp = await checkHealth();
   const active = await getPickerActive();
+  const scoringTabs = await getScoringTabs();
 
   let entity;
   if (ats) {
@@ -107,6 +146,7 @@ async function getState(tab) {
     hostname,
     selectorInfo: learned || null,
     pickerActiveHere: active?.tabId === tab.id,
+    scoring: !!scoringTabs[tab.id],
   };
 }
 
@@ -124,21 +164,29 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       }
       case "co-lite:capture": {
         const tab = await getActiveTab();
-        const captured = await captureJd(tab);
-        const result = await score(msg.tier, {
-          jd: captured.description,
-          url: tab.url,
-          title: captured.title || tab.title,
-          company: captured.company || "",
-        });
-        const full = { ...result, captured, tab: { url: tab.url, title: tab.title } };
-        await chrome.storage.local.set({ lastCapture: full });
-        sendResponse(full);
+        await setScoring(tab.id, true);
+        try {
+          const captured = await captureJd(tab);
+          const result = await score(msg.tier, {
+            jd: captured.description,
+            url: tab.url,
+            title: captured.title || tab.title,
+            company: captured.company || "",
+          });
+          const full = { ...result, captured, tab: { url: tab.url, title: tab.title } };
+          await setLastCapture(tab.id, full);
+          sendResponse(full);
+        } catch (err) {
+          sendResponse({ ok: false, error: err.message });
+        } finally {
+          await setScoring(tab.id, false);
+        }
         break;
       }
       case "co-lite:get-last-capture": {
-        const { lastCapture } = await chrome.storage.local.get("lastCapture");
-        sendResponse(lastCapture || null);
+        const tab = await getActiveTab();
+        const lastCaptureByTab = await getLastCaptureMap();
+        sendResponse(lastCaptureByTab[tab.id] || null);
         break;
       }
       case "co-lite:start-picker": {
@@ -210,11 +258,11 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         break;
       }
       case "co-lite:save-shortlist": {
-        sendResponse(await saveShortlist(msg.payload));
-        break;
-      }
-      case "co-lite:teach": {
-        sendResponse(await saveMemory(msg.text));
+        try {
+          sendResponse(await saveShortlist(msg.payload));
+        } catch (err) {
+          sendResponse({ ok: false, error: err.message });
+        }
         break;
       }
       case "co-lite:refresh-selectors": {
